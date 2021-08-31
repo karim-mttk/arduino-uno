@@ -1,1 +1,17 @@
+#include <stdio.h>
 
+int main()
+{
+    printf("karim \n");
+    printf("muttn \n");
+    
+    printf(" *\n **\n ***\n ****\n *****\n");
+    
+            
+            
+           
+
+
+
+   return 0;
+}
