@@ -1,4 +1,7 @@
 #include <stdio.h>
+
+
+
 void check(int number) {
     if (number < 10) {
         printf("0%d", number);
@@ -8,75 +11,76 @@ void check(int number) {
     }
 }
 void count(int present_time, int time_for_alarm) {
-    int present_hour = present_time/10000;
-    int present_min = (present_time/100) % 100;
-    int present_sec = (present_time % 100);
-    int alarm_hour = time_for_alarm/10000;
-    int alarm_min = (time_for_alarm/100) % 100;
-    int alarm_sec = (time_for_alarm % 100);
-    while (present_hour != alarm_hour) {
-        if (present_hour == alarm_hour && present_min == alarm_min && present_sec == alarm_sec) {
+    int pr_hr = present_time/10000;
+    int pr_min = (present_time/100) % 100;
+    int pr_sec = (present_time % 100);
+    int al_hr = time_for_alarm/10000;
+    int al_min = (time_for_alarm/100) % 100;
+    int al_sec = (time_for_alarm % 100);
+    while (pr_hr != al_hr) {
+        if (pr_hr == al_hr && pr_min == al_min && pr_sec == al_sec) {
             printf("ALARM");
         }
         else {
-            if (present_sec <= 60) {
-                present_sec++;
-                if (present_sec == 60) {
-                    present_sec = 0;
-                    present_min++;
+            if (pr_sec <= 60) {
+                pr_sec++;
+                if (pr_sec == 60) {
+                    pr_sec = 0;
+                    pr_min++;
                 }
-                if (present_min == 60) {
-                    present_min = 0;
-                    present_hour++;
+                if (pr_min == 60) {
+                    pr_min = 0;
+                    pr_hr++;
                 }
-                if (present_hour == 24) {
-                    present_hour = 0;
+                if (pr_hr == 24) {
+                    pr_hr = 0;
                 }
-                check(present_hour);
+                check(pr_hr);
                 printf(":");
-                check(present_min);
+                check(pr_min);
                 printf(":");
-                check(present_sec);
+                check(pr_sec);
                 printf("\n");
             }
         }
     }
-    while (present_min != alarm_min) {
-        if (present_hour == alarm_hour && present_min == alarm_min && present_sec == alarm_sec) {
+    while (pr_min != al_min) {
+        if (pr_hr == al_hr && pr_min == al_min && pr_sec == al_sec) {
             printf("ALARM");
         }
         else {
-            if (present_sec <= 60) {
-                present_sec++;
+            if (pr_sec <= 60) {
+                pr_sec++;
 
-                if (present_sec == 60) {
-                    present_sec = 0;
-                    present_min++;
+                if (pr_sec == 60) {
+                    pr_sec = 0;
+                    pr_min++;
                 }
-                check(present_hour);
+                check(pr_hr);
                 printf(":");
-                check(present_min);
+                check(pr_min);
                 printf(":");
-                check(present_sec);
+                check(pr_sec);
                 printf("\n");
             }
         }
     }
-    while (present_sec != alarm_sec) {
-            check(present_hour);
+    while (pr_sec != al_sec) {
+            pr_sec++;
+            check(pr_hr);
             printf(":");
-            check(present_min);
+            check(pr_min);
             printf(":");
-            check(present_sec);
+            check(pr_sec);
             printf("\n");
-        present_sec++;
+        
     }
 }
 int main() {
     int present_time, time_for_alarm;
-    printf("Enter Current Time. (format HHMMSS)");
+    printf("Input Current Time in HHMMSS: ");
     scanf("%d", &present_time);
-    printf("Enter Alarm Time ( format HHMMSS)");
+    printf("Set  Alarm  Time  in  HHMMSS: ");
     scanf("%d", &time_for_alarm);
     count(present_time, time_for_alarm);
     printf("ALARM");
