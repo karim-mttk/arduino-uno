@@ -1,80 +1,99 @@
+
+/* Muttakin Karim, epost: muttakin@kth.se */
+/*Ingenjörsmetodik| Inlämningsuppgift C-programmering */
+
+
 #include <stdio.h>
 #include<stdlib.h>
 
 
-void check(int number) {
-    if (number < 10) {
+void check(int number) 
+{
+    if (number < 10) 
+    {
         printf("0%d", number);
     }
-    else {
-        printf("%d", number);
-    }
+   else 
+   {
+ printf("%d", number);
+   }
 }
-void count(int present_time, int time_for_alarm) {
+
+void count(int present_time, int time_for_alarm)
+{
     int pr_hr = present_time/10000;
     int pr_min = (present_time/100) % 100;
     int pr_sec = (present_time % 100);
+    
     int al_hr = time_for_alarm/10000;
     int al_min = (time_for_alarm/100) % 100;
     int al_sec = (time_for_alarm % 100);
-    while (pr_hr != al_hr) {
-        if (pr_hr == al_hr && pr_min == al_min && pr_sec == al_sec) {
-            printf("ALARM");
-        }
+    
+          while (pr_hr != al_hr) 
+          
+          {
+      if (pr_hr == al_hr && pr_min == al_min && pr_sec == al_sec)
+      {
+           printf("ALARM!");
+      }
         else {
-            if (pr_sec <= 60) {
-                pr_sec++;
-                if (pr_sec == 60) {
+          if (pr_sec <= 60) 
+          {
+              pr_sec++;
+                if (pr_sec == 60) 
+                {
                     pr_sec = 0;
                     pr_min++;
-                }
-                if (pr_min == 60) {
-                    pr_min = 0;
-                    pr_hr++;
-                }
-                if (pr_hr == 24) {
-                    pr_hr = 0;
-                }
-                check(pr_hr);
-                printf(":");
-                check(pr_min);
-                printf(":");
-                check(pr_sec);
-                printf("\n");
-            }
-        }
+      }
+           if (pr_min == 60) 
+           {
+               pr_min = 0;
+                  pr_hr++;
+             }
+              if (pr_hr == 24) 
+              {
+              pr_hr = 0;
+              }
+             check(pr_hr);
+             printf(":");
+             check(pr_min);
+             printf(":");
+             check(pr_sec);
+             printf("\n");
+       }
+     }
     }
     while (pr_min != al_min) {
         if (pr_hr == al_hr && pr_min == al_min && pr_sec == al_sec) {
-            printf("ALARM");
+            printf("ALARM!");
         }
         else {
             if (pr_sec <= 60) {
-                pr_sec++;
+               pr_sec++;
 
-                if (pr_sec == 60) {
-                    pr_sec = 0;
+             if (pr_sec == 60) {
+                  pr_sec = 0;
                     pr_min++;
                 }
-                check(pr_hr);
-                printf(":");
-                check(pr_min);
-                printf(":");
-                check(pr_sec);
-                printf("\n");
-            }
-        }
+                 check(pr_hr);
+                 printf(":");
+                 check(pr_min);
+                 printf(":");
+                 check(pr_sec);
+                 printf("\n");
+       }
+      }
     }
     while (pr_sec != al_sec) {
-            pr_sec++;
-            check(pr_hr);
+      pr_sec++;
+        check(pr_hr);
+          printf(":");
+           check(pr_min);
             printf(":");
-            check(pr_min);
-            printf(":");
-            check(pr_sec);
-            printf("\n");
+             check(pr_sec);
+               printf("\n");
         
-    }
+ }
 }
 int main() {
     int present_time, time_for_alarm;
@@ -83,6 +102,6 @@ int main() {
     printf("Set  Alarm  Time  in  HHMMSS: ");
     scanf("%d", &time_for_alarm);
     count(present_time, time_for_alarm);
-    printf("ALARM");
+    printf("ALARM!");
     return 0;
 }
