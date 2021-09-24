@@ -1,8 +1,3 @@
-
-/* Muttakin Karim, epost: muttakin@kth.se */
-/*Ingenjörsmetodik| Inlämningsuppgift C-programmering */
-
-
 #include <stdio.h>
 #include<stdlib.h>
 
@@ -40,15 +35,15 @@ void count(int present_time, int time_for_alarm)
           if (pr_sec <= 60) 
           {
               pr_sec++;
-                if (pr_sec == 60) 
+              if (pr_sec == 60) 
                 {
-                    pr_sec = 0;
+                   pr_sec = 0;
                     pr_min++;
       }
            if (pr_min == 60) 
            {
                pr_min = 0;
-                  pr_hr++;
+               pr_hr++;
              }
               if (pr_hr == 24) 
               {
@@ -86,12 +81,12 @@ void count(int present_time, int time_for_alarm)
     }
     while (pr_sec != al_sec) {
       pr_sec++;
-        check(pr_hr);
-          printf(":");
-           check(pr_min);
-            printf(":");
-             check(pr_sec);
-               printf("\n");
+      check(pr_hr);
+       printf(":");
+       check(pr_min);
+       printf(":");
+        check(pr_sec);
+        printf("\n");
         
  }
 }
