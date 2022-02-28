@@ -250,7 +250,7 @@ int getbtns(void){
 
 #define ITOA_BUFSIZ ( 24 )
 char * itoaconv( int num )
-{
+/*{
   register int i, sign;
   static char itoa_buffer[ ITOA_BUFSIZ ];
   static const char maxneg[] = "-2147483648";
@@ -280,6 +280,7 @@ char * itoaconv( int num )
   }
   return( &itoa_buffer[ i + 1 ] ); /* add 1 to return a pointer to first index position */
 }
+*/
 
 void delay(int cyc) {
 	int i;
