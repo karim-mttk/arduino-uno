@@ -1,10 +1,3 @@
-/*
- * I2C Example project for the mcb32 toolchain
- * Demonstrates the temperature sensor and display of the Basic IO Shield
- * Make sure your Uno32-board has the correct jumper settings, as can be seen
- * in the rightmost part of this picture:
- * https://reference.digilentinc.com/_media/chipkit_uno32:jp6_jp8.png?w=300&tok=dcceb2
- */
 
 #include <pic32mx.h>
 #include <stdint.h>
@@ -206,14 +199,14 @@ const uint8_t const snowflake [] = {
 };
 
 
-// Get switches
+// get_switches
 int getsw(void){
     int sw = (PORTD >> 8) & 0x000F;  //Skifta bitarna 11-8 till plats till lsb, maska! Spara som int.
 
     return sw;
 }
 
-// Get buttons
+// get_buttons
 int getbtns(void){
     int btn = (PORTD >> 5) & 0x007;    //Skifta bitarna 7-4 till plats till lsb, maska! Spara som int.
 
@@ -298,9 +291,7 @@ char * itoaconv( int num )
       i -= 1;
     }
   }
-  /* Since the loop always sets the index i to the next empty position,
-   * we must add 1 in order to return a pointer to the first occupied position. */
-  return( &itoa_buffer[ i + 1 ] );
+  return( &itoa_buffer[ i + 1 ] ); /* add 1 to return a pointer to first index position */
 }
 
 void delay(int cyc) {
