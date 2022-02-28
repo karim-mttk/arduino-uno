@@ -220,7 +220,7 @@ int getbtns(void){
     return btn;
 }
 
-// Function copied from lab3
+// things that have been used from lab3
 /*
  * itoa
  *
@@ -267,6 +267,7 @@ int getbtns(void){
  * 64-bit quantities; however, the size of an int on your current compiler
  * may not allow this straight away.
  */
+
 #define ITOA_BUFSIZ ( 24 )
 char * itoaconv( int num )
 {
@@ -714,7 +715,7 @@ int main(void) {
 
 		*t++ = ' ';
 
-		// Depending on the positions the temperature will be displayed in celsius, kelvin or fahrenheit
+		// Depending on the positions the temperature will be displayed in celsius or fahrenheit
 		if (switch_value == 0)
 		{
 			*t++ = 7;
