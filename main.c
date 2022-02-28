@@ -41,7 +41,7 @@ int period = 1; // Period time, default value 1 minute
 
 // Global temps
 uint16_t highest = 0x0000; // Reset temperature value
-uint16_t snowflake_or_sun = 0x1900; // Temperature value 10 celsius
+uint16_t tempv_10 = 0x1900; // Temperature value 10 celsius
 
 
 char textbuffer[4][16];
@@ -469,11 +469,9 @@ char *fixed_to_string(uint16_t num, char *buf) {
 	}
 
 	// Changing picture depending on the temperature
-	if (num >= snowflake_or_sun)
+	if (num >= tempv_10)
         display_sun = 1;
-	else
-		display_snowflake = 1;
-
+	
 	// Checking the switches
 	int switch_value = getsw();
 
