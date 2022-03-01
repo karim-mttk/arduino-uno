@@ -1,8 +1,15 @@
 
+/*
+ * I2C Example project for the mcb32 toolchain
+ * Demonstrates the temperature sensor and display of the Basic IO Shield
+ * Make sure your Uno32-board has the correct jumper settings, as can be seen
+ * in the rightmost part of this picture:
+ * https://reference.digilentinc.com/_media/chipkit_uno32:jp6_jp8.png?w=300&tok=dcceb2
+ */
+
 #include <pic32mx.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "mipslab.h"
 
 #define DISPLAY_VDD_PORT PORTF
 #define DISPLAY_VDD_MASK 0x40
@@ -13,12 +20,11 @@
 #define DISPLAY_RESET_PORT PORTG
 #define DISPLAY_RESET_MASK 0x200
 
+
+#define TIMEOUT (80000000/10000)    //Definerar våran timeout för prescale 1:256. 0,1 sekund.
+
 /* Address of the temperature sensor on the I2C bus */
 #define TEMP_SENSOR_ADDR 0x48
-
-// Definitions for display_image()
-#define DISPLAY_CHANGE_TO_COMMAND_MODE (PORTFCLR = 0x10)
-#define DISPLAY_CHANGE_TO_DATA_MODE (PORTFSET = 0x10)
 
 /* Temperature sensor internal registers */
 typedef enum TempSensorReg TempSensorReg;
@@ -29,24 +35,17 @@ enum TempSensorReg {
 	TEMP_SENSOR_REG_LIMIT,
 };
 
-// Global variables for the icons
-int display_snowflake = 0;
-int display_sun = 0;
+int sec = 0;
+int tickCount = 0;
+int seconds = 0;
+int hi = 0;
+int low = 0x1E00;
 
-// Timer
-int pr_count = 0;
-int sec_count = 0;
-int min_count = 0;
-int period = 1; // Period time, default value 1 minute
-
-// Global temps
-uint16_t highest = 0x0000; // Reset temperature value
-uint16_t tempv_10 = 0x1900; // Temperature value 10 celsius
 
 
 char textbuffer[4][16];
 
-const uint8_t const font[] = {
+static const uint8_t const font[] = {
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -177,84 +176,13 @@ const uint8_t const font[] = {
 	0, 120, 68, 66, 68, 120, 0, 0,
 };
 
-// Sun icon
-const uint8_t const sun[] =
-{
-0xff, 0xff, 0xff, 0x03, 0xe0, 0xff, 0xfb, 0xfe, 0xff, 0x73, 0xf8, 0xff, 0x27, 0xf3, 0xff, 0x8f, 0xe7, 0xff, 0xff, 
-0xef, 0xff, 0xff, 0xe0, 0xff, 0xff, 0xee, 0xff, 0xff, 0xee, 0xff, 0xff, 0xee, 0xff, 0xff, 0xe0, 0xff, 0xef, 0xff, 
-0xff, 0x0f, 0xe0, 0xff, 0xff, 0xef, 0xff, 0x3f, 0xe8, 0xff, 0xbf, 0xea, 0xff, 0xbf, 0xeb, 0xff, 0xff, 0xff, 0xff, 
-0xbf, 0xfb, 0xff, 0x7f, 0xfd, 0xff, 0xff, 0xfe, 0xff, 0x7f, 0xfd, 0xff, 0xbf, 0xfb, 0xff
-};
-
-// get_switches
-int getsw(void){
-    int sw = (PORTD >> 8) & 0x000F;  //Skifta bitarna 11-8 till plats till lsb, maska! Spara som int.
-
-    return sw;
-}
-
-// get_buttons
-int getbtns(void){
-    int btn = (PORTD >> 5) & 0x007;    //Skifta bitarna 7-4 till plats till lsb, maska! Spara som int.
-
-    return btn;
-}
-
-// things that have been used from lab3
-/*
- * itoa
- *
- * Simple conversion routine
- * Converts binary to decimal numbers
- * Returns pointer to (static) char array
- *
- * The integer argument is converted to a string
- * of digits representing the integer in decimal format.
- * The integer is considered signed, and a minus-sign
- * precedes the string of digits if the number is
- * negative.
- *
- * This routine will return a varying number of digits, from
- * one digit (for integers in the range 0 through 9) and up to
- * 10 digits and a leading minus-sign (for the largest negative
- * 32-bit integers).
- *
- * If the integer has the special value
- * 100000...0 (that's 31 zeros), the number cannot be
- * negated. We check for this, and treat this as a special case.
- * If the integer has any other value, the sign is saved separately.
- *
- * If the integer is negative, it is then converted to
- * its positive counterpart. We then use the positive
- * absolute value for conversion.
- *
- * Conversion produces the least-significant digits first,
- * which is the reverse of the order in which we wish to
- * print the digits. We therefore store all digits in a buffer,
- * in ASCII form.
- *
- * To avoid a separate step for reversing the contents of the buffer,
- * the buffer is initialized with an end-of-string marker at the
- * very end of the buffer. The digits produced by conversion are then
- * stored right-to-left in the buffer: starting with the position
- * immediately before the end-of-string marker and proceeding towards
- * the beginning of the buffer.
- *
- * For this to work, the buffer size must of course be big enough
- * to hold the decimal representation of the largest possible integer,
- * and the minus sign, and the trailing end-of-string marker.
- * The value 24 for ITOA_BUFSIZ was selected to allow conversion of
- * 64-bit quantities; however, the size of an int on your current compiler
- * may not allow this straight away.
- */
-
 #define ITOA_BUFSIZ ( 24 )
 char * itoaconv( int num )
 {
   register int i, sign;
   static char itoa_buffer[ ITOA_BUFSIZ ];
   static const char maxneg[] = "-2147483648";
-
+  
   itoa_buffer[ ITOA_BUFSIZ - 1 ] = 0;   /* Insert the end-of-string marker. */
   sign = num;                           /* Save sign. */
   if( num < 0 && num - 1 > 0 )          /* Check for most negative integer */
@@ -278,7 +206,9 @@ char * itoaconv( int num )
       i -= 1;
     }
   }
-  return( &itoa_buffer[ i + 1 ] ); /* add 1 to return a pointer to first index position */
+  /* Since the loop always sets the index i to the next empty position,
+   * we must add 1 in order to return a pointer to the first occupied position. */
+  return( &itoa_buffer[ i + 1 ] );
 }
 
 void delay(int cyc) {
@@ -298,47 +228,29 @@ void display_init() {
 	delay(10);
 	DISPLAY_VDD_PORT &= ~DISPLAY_VDD_MASK;
 	delay(1000000);
-
+	
 	spi_send_recv(0xAE);
 	DISPLAY_RESET_PORT &= ~DISPLAY_RESET_MASK;
 	delay(10);
 	DISPLAY_RESET_PORT |= DISPLAY_RESET_MASK;
 	delay(10);
-
+	
 	spi_send_recv(0x8D);
 	spi_send_recv(0x14);
-
+	
 	spi_send_recv(0xD9);
 	spi_send_recv(0xF1);
-
+	
 	DISPLAY_VBATT_PORT &= ~DISPLAY_VBATT_MASK;
 	delay(10000000);
-
+	
 	spi_send_recv(0xA1);
 	spi_send_recv(0xC8);
-
+	
 	spi_send_recv(0xDA);
 	spi_send_recv(0x20);
-
+	
 	spi_send_recv(0xAF);
-}
-
-void display_image(int x, const uint8_t *data) {
-    int i, j;
-    for(i = 0; i < 4; i++) {
-        DISPLAY_CHANGE_TO_COMMAND_MODE;
-
-        spi_send_recv(0x22);
-        spi_send_recv(i);
-
-        spi_send_recv(x & 0xF);
-        spi_send_recv(0x10 | ((x >> 4) & 0xF));
-
-        DISPLAY_CHANGE_TO_DATA_MODE;
-
-        for(j = 0; j < 32; j++)
-            spi_send_recv(~data[i*32 + j]);
-    }
 }
 
 void display_string(int line, char *s) {
@@ -347,7 +259,7 @@ void display_string(int line, char *s) {
 		return;
 	if(!s)
 		return;
-
+	
 	for(i = 0; i < 16; i++)
 		if(*s) {
 			textbuffer[line][i] = *s;
@@ -363,18 +275,17 @@ void display_update() {
 		DISPLAY_COMMAND_DATA_PORT &= ~DISPLAY_COMMAND_DATA_MASK;
 		spi_send_recv(0x22);
 		spi_send_recv(i);
-
+		
 		spi_send_recv(0x0);
 		spi_send_recv(0x10);
-
+		
 		DISPLAY_COMMAND_DATA_PORT |= DISPLAY_COMMAND_DATA_MASK;
-
-		// Original value j < 16 but j < 12 removes flimmering on the icon
-		for(j = 0; j < 12; j++) {
+		
+		for(j = 0; j < 16; j++) {
 			c = textbuffer[i][j];
 			if(c & 0x80)
 				continue;
-
+			
 			for(k = 0; k < 8; k++)
 				spi_send_recv(font[c*8 + k]);
 		}
@@ -443,32 +354,40 @@ char *fixed_to_string(uint16_t num, char *buf) {
 	bool neg = false;
 	uint32_t n;
 	char *tmp;
-
+	int sw = getsw();
+	
 	if(num & 0x8000) {
 		num = ~num + 1;
 		neg = true;
 	}
-
-	if(min_count < period)
+	
+	if(seconds > 0)
 	{
-		if(num > highest)
-			highest = num;
+		if(num > hi){
+			hi = num;
+		}
+
+		else if(num < low){
+			low = num;
+		}
+
 	}
 
-	// Changing picture depending on the temperature
-	if (num >= tempv_10)
-        display_sun = 1;
 	
-	// Checking the switches
-	int switch_value = getsw();
-
-	// Depending on the positions the temperature will be converted to celsius, kelvin or fahrenheit
-	if (switch_value == 0)  // Celsius default unit
-		n = (num >> 8);
-	else if (switch_value == 8) // Farenheit switch 3
-		n = (((num >> 8) * 2) + 32);
-
 	buf += 4;
+
+	n = num >> 8;
+	
+	if(sw == 1)			//Om sw1 intryckt, Farenheit = Celcius * 1.8 + 32
+	{
+	n = (((num >> 8)*1.8)+32);	
+	} 
+
+	if(sw == 2)			//Om sw2 intryckt, Kelvin = Celcius + 274
+	{
+	n = ((num >> 8)+274);	
+	} 
+
 	tmp = buf;
 	do {
 		*--tmp = (n  % 10) + '0';
@@ -476,7 +395,7 @@ char *fixed_to_string(uint16_t num, char *buf) {
 	} while(n);
 	if(neg)
 		*--tmp = '-';
-
+	
 	n = num;
 	if(!(n & 0xFF)) {
 		*buf = 0;
@@ -488,7 +407,7 @@ char *fixed_to_string(uint16_t num, char *buf) {
 		*buf++ = (n >> 8) + '0';
 	}
 	*buf = 0;
-
+	
 	return tmp;
 }
 
@@ -499,83 +418,76 @@ uint32_t strlen(char *str) {
 	return n;
 }
 
-void display_temperature(char *s)
+//SW Funktionen
+int getsw( void ){
+	while(1)
+		return((PORTD >> 8) & 0xf);
+}
+//BTN Funktionen
+int getbtns(void){
+	while(1)
+		return((PORTD >> 5) & 0x7);
+}
+void display_temp(char *s)
 {
 	display_string(0, "Temperature:");
 	display_string(1, s);
 	display_string(2, "");
 	display_string(3, "");
 }
-
-void display_timer(void)
+void setPeriod(void)
 {
-	display_string(0, "s, min:");
-	display_string(1, itoaconv(sec_count));
-	display_string(2, itoaconv(min_count));
-}
-
-void display_period_and_highest_temp(void)
-{
-	// Checking the buttons
-    int buttons = getbtns();
-
-
-    unsigned char* temp = &highest;
-    int first = *temp;  //Point, unused for now
-    int second = *(temp+1); //Integer
-
-	display_string(0 , "Period(min):");
-	display_string(1, itoaconv(period));
-	display_string(2, "Highest temp");
-	display_string(3, itoaconv(second));
-
-    if (buttons == 1) // Button 2
-        period++;
-    else if (buttons == 2) // Button 3
-        period--;
-}
-
-void display_error_message(void)
-{
-	display_string(0, "Invalid");
-	display_string(1, "switch");
-	display_string(2, "combination!");
+	int BTN = getbtns();
+	display_string(0, "Set Period:");
+	display_string(1, "Seconds");
+	display_string(2, itoaconv(sec));
 	display_string(3, "");
+
+	if(BTN == 2)
+		sec += 10;
+	else if(BTN == 4)
+		sec += -10;
+	else if(BTN == 1)
+	{
+		seconds = sec;
+		display_string(3, "SET");
+		sec = 0;
+		
+	}
 }
 
-void display_image_sun(void)
-{
-	display_image(96, sun);
-    display_sun = 0;
-}
-
-void display_image_snowflake(void)
-{
-	display_image(96, snowflake);
-    display_snowflake = 0;
-}
 
 int main(void) {
-
 	uint16_t temp;
 	char buf[32], *s, *t;
 
-	T2CON = 0; // Stop timer and clear control register
-	T2CONSET = 0x50; // Prescale 1:32
-	TMR2 = 0; // Clear timer register
-	PR2 = 80000000 / 32 / 100; // Load period register
-	T2CONSET = 0x8000; // Start timer
+	//INPUT SW1 - SW4
+	TRISD = (0xF << 8) | TRISD;
+
+	//INPUT BTN2 - BTN4
+	TRISD = (0x7 << 5) | TRISD;
+
+	//OUTPUT DIODER
+	TRISE = (-0xff) | TRISE;
+
+	//TIMER
+	T2CON = 0; 		//Nollar timer2
+	PR2 = TIMEOUT; 
+	TMR2 = 0; 		//Nollar räknaren
+	T2CON = 0x8070; //Slår på timer och sätter prescale 1:256;
+
+
 
 	/* Set up peripheral bus clock */
 	OSCCON &= ~0x180000;
 	OSCCON |= 0x080000;
-
+	
 	/* Set up output pins */
 	AD1PCFG = 0xFFFF;
 	ODCE = 0x0;
 	TRISECLR = 0xFF;
 	PORTE = 0x0;
-
+	
 	/* Output pins for display signals */
 	PORTF = 0xFFFF;
 	PORTG = (1 << 9);
@@ -583,23 +495,23 @@ int main(void) {
 	ODCG = 0x0;
 	TRISFCLR = 0x70;
 	TRISGCLR = 0x200;
-
+	
 	/* Set up input pins */
 	TRISDSET = (1 << 8);
 	TRISFSET = (1 << 1);
-
+	
 	/* Set up SPI as master */
 	SPI2CON = 0;
 	SPI2BRG = 4;
-
+	
 	/* Clear SPIROV*/
 	SPI2STATCLR &= ~0x40;
 	/* Set CKP = 1, MSTEN = 1; */
-    SPI2CON |= 0x60;
-
+        SPI2CON |= 0x60;
+	
 	/* Turn on SPI */
 	SPI2CONSET = 0x8000;
-
+	
 	/* Set up i2c */
 	I2C1CON = 0x0;
 	/* I2C Baud rate should be less than 400 kHz, is generated by dividing
@@ -609,32 +521,32 @@ int main(void) {
 	I2C1CONSET = 1 << 13; //SIDL = 1
 	I2C1CONSET = 1 << 15; // ON = 1
 	temp = I2C1RCV; //Clear receive buffer
-
+	
 	/* Set up input pins */
 	TRISDSET = (1 << 8);
 	TRISFSET = (1 << 1);
-
+	
+	
 	display_init();
 	display_string(0, "");
 	display_string(1, "");
 	display_string(2, "");
 	display_string(3, "");
 	display_update();
-
+	
 	/* Send start condition and address of the temperature sensor with
 	write mode (lowest bit = 0) until the temperature sensor sends
 	acknowledge condition */
 	do {
 		i2c_start();
 	} while(!i2c_send(TEMP_SENSOR_ADDR << 1));
-
 	/* Send register number we want to access */
 	i2c_send(TEMP_SENSOR_REG_CONF);
 	/* Set the config register to 0 */
 	i2c_send(0x0);
 	/* Send stop condition */
 	i2c_stop();
-
+	
 	for(;;) {
 		/* Send start condition and address of the temperature sensor with
 		write flag (lowest bit = 0) until the temperature sensor sends
@@ -642,17 +554,16 @@ int main(void) {
 		do {
 			i2c_start();
 		} while(!i2c_send(TEMP_SENSOR_ADDR << 1));
-
 		/* Send register number we want to access */
 		i2c_send(TEMP_SENSOR_REG_TEMP);
-
+		
 		/* Now send another start condition and address of the temperature sensor with
 		read mode (lowest bit = 1) until the temperature sensor sends
 		acknowledge condition */
 		do {
 			i2c_start();
 		} while(!i2c_send((TEMP_SENSOR_ADDR << 1) | 1));
-
+		
 		/* Now we can start receiving data from the sensor data register */
 		temp = i2c_recv() << 8;
 		i2c_ack();
@@ -660,72 +571,99 @@ int main(void) {
 		/* To stop receiving, send nack and stop */
 		i2c_nack();
 		i2c_stop();
-
+		
 		s = fixed_to_string(temp, buf);
 		t = s + strlen(s);
 
-		// Check interrupt flag
-		if (IFS(0) & 0x100)
+		if(IFS(0) & 0x100)
 		{
-			pr_count++;
+			tickCount ++;
 			IFSCLR(0) = 0x100;
 		}
 
-		if (pr_count == 10)
+		int BTN = getbtns();	//Variabel BTN som håller koll på on knappar används
+		int sw = getsw();		//Variabel Sw som håller koll ifall en switch används
+
+		if(tickCount >= 10)
 		{
-			sec_count++;
-			pr_count = 0;
+			if(seconds > 0)
+			{	
+			seconds--;
+			}	
+		tickCount = 0;	
 		}
 
-		if (sec_count == 60)
-		{
-			min_count++;
-			sec_count = 0;
-			if (min_count == period)
-				min_count = 0;
-				highest = 0x0000;
-		}
-
-		// Checking the switches
-		int switch_value = getsw();
-
+		if(sw == 0)				//Ingen switch intryckt, visa Celcius
+		{ 
 		*t++ = ' ';
-
-		// Depending on the positions the temperature will be displayed in celsius or fahrenheit
-		if (switch_value == 0)
-		{
-			*t++ = 7;
-			*t++ = 'C';
-			*t++ = 0;
-
-			display_temperature(s);
+		*t++ = 7;
+		*t++ = 'C';
+		*t++ = 0;
+		display_temp(s);
 		}
 
-		else if (switch_value == 8)
-		{
-			*t++ = 7;
-			*t++ = 'F';
-			*t++ = 0;
-
-			display_temperature(s);
+		if(sw == 1)				//Sw1 intryckt, visa Farenheit
+		{ 
+		*t++ = ' ';
+		*t++ = 7;
+		*t++ = 'F';
+		*t++ = 0;
+		display_temp(s);
 		}
-		else if(switch_value == 2)
-			display_timer();
-		else if (switch_value == 1)
-			display_period_and_highest_temp();
-		// If two or more switches are switched an error message will appear
-		else
-			display_error_message();
 
-		// Displaying icon depending on the temperature
-		if (display_sun)
-			display_image_sun();
-		else if (display_snowflake)
-			display_image_snowflake();
+		if(sw == 2)				//Sw2 intryckt, visa Kelvin
+		{ 
+		*t++ = ' ';
+		*t++ = 7;
+		*t++ = 'K';
+		*t++ = 0;
+		display_temp(s);
+		}
 
+		if(sw == 4)
+		{
+			setPeriod();
+		}
+
+		if(sw == 8)
+		{
+		display_string(0, "Time left:");
+		display_string(1, itoaconv(seconds));
+		display_string(2, "Show temperatures hi / low");
+		display_string(3, "<<>>");
+
+			if(BTN == 1)
+			{
+			display_string(0, "Time left:");
+			display_string(1, itoaconv(seconds));
+			display_string(2, "HIGHEST TEMP");
+			display_string(3, fixed_to_string(hi, buf));
+			}
+			else if(BTN == 2)
+			{
+			display_string(0, "Time left:");
+			display_string(1, itoaconv(seconds));
+			display_string(2, "LOWEST TEMP");
+			display_string(3, fixed_to_string(low, buf));
+			}
+		}
+
+		if (sw = getsw())		//Tänder dioderna beroende på vilken switch som trycks in. 
+		{
+  		if(sw & 1) PORTE = 0x3;
+  		if(sw & 2) PORTE = 0xc;
+  		if(sw & 4) PORTE = 0x30;
+  		if(sw & 8) PORTE = 0xc0;
+		}      
+
+		if(getsw() == 0) PORTE = 0;
+
+		
+		
 		display_update();
 		delay(1000000);
 	}
-
+	
 	return 0;
 }
+
