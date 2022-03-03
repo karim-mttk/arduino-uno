@@ -21,7 +21,7 @@
 #define DISPLAY_RESET_MASK 0x200
 
 
-#define TIMEOUT (80000000/10000)    //Definerar våran timeout för prescale 1:256. 0,1 sekund.
+#define TIMEOUT (80000000/3150)    //Definerar våran timeout för prescale 1:256. 0,1 sekund.
 
 /* Address of the temperature sensor on the I2C bus */
 #define TEMP_SENSOR_ADDR 0x48
@@ -35,11 +35,11 @@ enum TempSensorReg {
 	TEMP_SENSOR_REG_LIMIT,
 };
 
-int sec = 0;
-int tickCount = 0;
-int seconds = 0;
-int hi = 0;
-int low = 0x1E00;
+int sec = 0;											//Används för att sätta perioden
+int tickCount = 0;								//Räknar 10 flagor för att ge 1 sekund count
+int seconds = 0;									//Tidsintervallet som räknas ner
+int hi = 0;												//Intervallets högsta temperatur
+int low = 0;											//Intervallets lägsta temperatur
 
 
 
@@ -176,7 +176,7 @@ static const uint8_t const font[] = {
 	0, 120, 68, 66, 68, 120, 0, 0,
 };
 
-#define ITOA_BUFSIZ ( 24 )
+#define ITOA_BUFSIZ ( 24 )							//GIVEN funktion labb 3
 char * itoaconv( int num )
 {
   register int i, sign;
@@ -361,16 +361,14 @@ char *fixed_to_string(uint16_t num, char *buf) {
 		neg = true;
 	}
 	
-	if(seconds > 0)
+	if(seconds > 0)											//När intervall körs sätts lästa och högsta temperatur
 	{
 		if(num > hi){
 			hi = num;
 		}
-
 		else if(num < low){
 			low = num;
 		}
-
 	}
 
 	
@@ -378,12 +376,12 @@ char *fixed_to_string(uint16_t num, char *buf) {
 
 	n = num >> 8;
 	
-	if(sw == 1)			//Om sw1 intryckt, Farenheit = Celcius * 1.8 + 32
+	if(sw == 1)													//Om sw1 intryckt, Farenheit = Celcius * 1.8 + 32
 	{
 	n = (((num >> 8)*1.8)+32);	
 	} 
 
-	if(sw == 2)			//Om sw2 intryckt, Kelvin = Celcius + 274
+	if(sw == 2)													//Om sw2 intryckt, Kelvin = Celcius + 274
 	{
 	n = ((num >> 8)+274);	
 	} 
@@ -418,30 +416,29 @@ uint32_t strlen(char *str) {
 	return n;
 }
 
-//SW Funktionen
-int getsw( void ){
+int getsw( void ){												//SW Funktionen
 	while(1)
 		return((PORTD >> 8) & 0xf);
 }
-//BTN Funktionen
-int getbtns(void){
+
+int getbtns(void){												//BTN Funktionen		
 	while(1)
 		return((PORTD >> 5) & 0x7);
 }
-void display_temp(char *s)
+void display_temp(char *s)								//Visar temperaturen
 {
 	display_string(0, "Temperature:");
 	display_string(1, s);
 	display_string(2, "");
 	display_string(3, "");
 }
-void setPeriod(void)
+void setPeriod(void)											//Ställer in period för intervallmätning
 {
 	int BTN = getbtns();
-	display_string(0, "Set Period:");
-	display_string(1, "Seconds");
-	display_string(2, itoaconv(sec));
-	display_string(3, "");
+	display_string(0, "Set Period 'sec':");
+	display_string(1, itoaconv(sec));
+	display_string(2, "");
+	display_string(3, "- + SET");
 
 	if(BTN == 2)
 		sec += 10;
@@ -452,6 +449,7 @@ void setPeriod(void)
 		seconds = sec;
 		display_string(3, "SET");
 		sec = 0;
+		low = 0x1E00;
 		
 	}
 }
@@ -460,23 +458,18 @@ void setPeriod(void)
 int main(void) {
 	uint16_t temp;
 	char buf[32], *s, *t;
+																							
+	TRISD = (0xF << 8) | TRISD;							//INPUT SW1 - SW4
 
-	//INPUT SW1 - SW4
-	TRISD = (0xF << 8) | TRISD;
+	TRISD = (0x7 << 5) | TRISD;							//INPUT BTN2 - BTN4
 
-	//INPUT BTN2 - BTN4
-	TRISD = (0x7 << 5) | TRISD;
+	TRISE = (-0xff) | TRISE;								//OUTPUT DIODER
 
-	//OUTPUT DIODER
-	TRISE = (-0xff) | TRISE;
-
-	//TIMER
-	T2CON = 0; 		//Nollar timer2
+																					//TIMER
+	T2CON = 0; 															//Nollar timer2
 	PR2 = TIMEOUT; 
-	TMR2 = 0; 		//Nollar räknaren
-	T2CON = 0x8070; //Slår på timer och sätter prescale 1:256;
-
-
+	TMR2 = 0; 															//Nollar räknaren
+	T2CON = 0x8070; 												//Slår på timer och sätter prescale 1:256;
 
 	/* Set up peripheral bus clock */
 	OSCCON &= ~0x180000;
@@ -575,16 +568,16 @@ int main(void) {
 		s = fixed_to_string(temp, buf);
 		t = s + strlen(s);
 
-		if(IFS(0) & 0x100)
+		if(IFS(0) & 0x100)											//Räknar upp tickcount för varje flagga
 		{
 			tickCount ++;
 			IFSCLR(0) = 0x100;
 		}
 
-		int BTN = getbtns();	//Variabel BTN som håller koll på on knappar används
-		int sw = getsw();		//Variabel Sw som håller koll ifall en switch används
+		int BTN = getbtns();									//Variabel BTN som håller koll på on knappar används
+		int sw = getsw();											//Variabel Sw som håller koll ifall en switch används
 
-		if(tickCount >= 10)
+		if(tickCount >= 10)										//Räknar ner sekunder när perioden är SET.
 		{
 			if(seconds > 0)
 			{	
@@ -593,7 +586,7 @@ int main(void) {
 		tickCount = 0;	
 		}
 
-		if(sw == 0)				//Ingen switch intryckt, visa Celcius
+		if(sw == 0)														//Ingen switch intryckt, visa Celcius
 		{ 
 		*t++ = ' ';
 		*t++ = 7;
@@ -602,7 +595,7 @@ int main(void) {
 		display_temp(s);
 		}
 
-		if(sw == 1)				//Sw1 intryckt, visa Farenheit
+		if(sw == 1)														//Sw1 intryckt, visa Farenheit
 		{ 
 		*t++ = ' ';
 		*t++ = 7;
@@ -611,35 +604,43 @@ int main(void) {
 		display_temp(s);
 		}
 
-		if(sw == 2)				//Sw2 intryckt, visa Kelvin
+		if(sw == 2)														//Sw2 intryckt, visa Kelvin
 		{ 
 		*t++ = ' ';
-		*t++ = 7;
+		*t++ = ' ';
 		*t++ = 'K';
 		*t++ = 0;
 		display_temp(s);
 		}
 
-		if(sw == 4)
+		if(sw == 4)														//Ställer in perioden för temperaturmätning
 		{
 			setPeriod();
 		}
 
-		if(sw == 8)
+		if(sw == 8)														//Här körs nedräkningen av intervallet och visar hi/low temp
 		{
 		display_string(0, "Time left:");
 		display_string(1, itoaconv(seconds));
-		display_string(2, "Show temperatures hi / low");
-		display_string(3, "<<>>");
+		display_string(2, "Temp");
+		display_string(3, "<<>> RESET");
 
-			if(BTN == 1)
+			if(BTN == 1)												//Reset knappen, nollställer variablerna för intervall
+			{
+				display_string(3, "RESET");
+				seconds = 0;
+				hi = 0;
+				low = 0;
+			}
+
+			if(BTN == 2)
 			{
 			display_string(0, "Time left:");
 			display_string(1, itoaconv(seconds));
 			display_string(2, "HIGHEST TEMP");
 			display_string(3, fixed_to_string(hi, buf));
 			}
-			else if(BTN == 2)
+			else if(BTN == 4)
 			{
 			display_string(0, "Time left:");
 			display_string(1, itoaconv(seconds));
@@ -648,15 +649,14 @@ int main(void) {
 			}
 		}
 
-		if (sw = getsw())		//Tänder dioderna beroende på vilken switch som trycks in. 
+		if (sw = getsw())										//Tänder dioderna beroende på vilken switch som trycks in. 
 		{
   		if(sw & 1) PORTE = 0x3;
   		if(sw & 2) PORTE = 0xc;
   		if(sw & 4) PORTE = 0x30;
   		if(sw & 8) PORTE = 0xc0;
 		}      
-
-		if(getsw() == 0) PORTE = 0;
+		if(getsw() == 0) PORTE = 0;					//Släcker alla dioder när alla sw står på 0
 
 		
 		
