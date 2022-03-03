@@ -1,11 +1,13 @@
 
-/*
- * I2C Example project for the mcb32 toolchain
- * Demonstrates the temperature sensor and display of the Basic IO Shield
- * Make sure your Uno32-board has the correct jumper settings, as can be seen
- * in the rightmost part of this picture:
- * https://reference.digilentinc.com/_media/chipkit_uno32:jp6_jp8.png?w=300&tok=dcceb2
- */
+/* 
+Miniprojekt group 88, Temperature Mätare
+
+Robert Koivusalo
+Muttakin Karim
+Datum: 03/01/2022 
+
+To use the product look up usermanual.pdf
+*/
 
 #include <pic32mx.h>
 #include <stdint.h>
